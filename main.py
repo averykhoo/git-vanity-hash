@@ -10,9 +10,6 @@ def check_output(*args, env=None):
 
 
 def brute_force(raw_payload, desired_prefix, random_word_length=None):
-    """
-    Generate SHA1 hash of the commit object.
-    """
     assert isinstance(desired_prefix, str) and len(desired_prefix) > 0
     assert int(desired_prefix, 16) <= 0xFFFF_FFFF
     if random_word_length is None:
@@ -47,10 +44,14 @@ def brute_force(raw_payload, desired_prefix, random_word_length=None):
     solution, magic_string = _brute_force(hash_obj, random_word_length - 1)
     t_end = time.perf_counter()
 
+    # handle overflow by clamping to max value so that we can still get stats
+    if magic_string is None:
+        magic_string = b''.join([alphabet[-1]] * random_word_length)
+
     # stats
     t = t_end - t_start
     print(round(t, 2), 'secs')
-    print(round(int(magic_string, 36) / t, 2), 'hashes per second')
+    print(round(int(magic_string, len(alphabet)) / t, 2), 'hashes per second')
 
     # return string as ascii so we can append it to the comment
     return solution, magic_string.decode('ascii')
@@ -91,4 +92,4 @@ def make_commit(commit, prefix):
 
 
 if __name__ == '__main__':
-    make_commit('HEAD', '00000')
+    make_commit('HEAD', 'abcdef')

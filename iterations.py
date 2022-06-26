@@ -10,9 +10,6 @@ def check_output(*args, env=None):
 
 
 def brute_force(raw_payload, desired_prefix, random_word_length=None):
-    """
-    Generate SHA1 hash of the commit object.
-    """
     assert isinstance(desired_prefix, str) and len(desired_prefix) > 0
     assert int(desired_prefix, 16) <= 0xFFFF_FFFF
     if random_word_length is None:
@@ -26,7 +23,7 @@ def brute_force(raw_payload, desired_prefix, random_word_length=None):
 
     # we can use up to 96, but python's `int()` can only parse up to 36, and it's nice to have the hashes rate
     alphabet = tuple(map(str.encode, string.printable[:36]))
-    alphabet_len = len(alphabet)
+    alphabet_len_minus = len(alphabet) - 1
 
     # we don't need an arbitrarily deep stack because we know exactly how many chars we want in the word
     current_chars = [0] * random_word_length
@@ -36,13 +33,15 @@ def brute_force(raw_payload, desired_prefix, random_word_length=None):
         hash_obj_copy.update(alphabet[0])
         hash_objs.append(hash_obj_copy)
 
-    # brute force loop
+    # expected full commit hash
     solution = None
+
+    # brute force loop
     t_start = time.perf_counter()
     while True:
 
         # test current config
-        _hash_obj = hash_objs[-1].copy()
+        _hash_obj = hash_objs[-1]
         _hash_obj.update(b'\n')
         _prefix = _hash_obj.hexdigest()[:prefix_len]
         if _prefix == desired_prefix:
@@ -50,14 +49,16 @@ def brute_force(raw_payload, desired_prefix, random_word_length=None):
             break
 
         # increment the alphabet indices
-        idx = random_word_length
-        while idx:
+        idx = random_word_length - 1
+        while idx >= 0 and current_chars[idx] == alphabet_len_minus:
+            current_chars[idx] = 0
             idx -= 1
-            current_chars[idx] = (current_chars[idx] + 1) % alphabet_len
-            if current_chars[idx]:
-                break
 
-        # looped right back around to zero, meaning we failed to find a matching hash
+        if idx:
+            current_chars[idx] += 1
+        elif idx == 0:
+            current_chars[idx] += 1
+            print('hit first index!')
         else:
             assert all(c == 0 for c in current_chars)
             break
@@ -73,24 +74,14 @@ def brute_force(raw_payload, desired_prefix, random_word_length=None):
     t_end = time.perf_counter()
     magic_string = b''.join(alphabet[c] for c in current_chars)
 
-    # handle overflow so that we can still get stats
+    # handle overflow by clamping to max value so that we can still get stats
     if all(char == alphabet[0][0] for char in magic_string):
-        magic_string = alphabet[1] + magic_string
+        magic_string = b''.join([alphabet[-1]] * random_word_length)
 
     # stats
     t = t_end - t_start
     print(round(t, 2), 'secs')
-    print(round(int(magic_string, 36) / t, 2), 'hashes per second')
-
-    # for i, h in enumerate(hash_objs):
-    #     print(i, h.hexdigest())
-
-    # h0 = hash_objs[0].copy()
-    # for i, c in enumerate(current_chars):
-    #     h0.update(alphabet[c])
-    #     print(i, h0.hexdigest())
-    # h0.update(b'\n')
-    # print(h0.hexdigest())
+    print(round(int(magic_string, len(alphabet)) / t, 2), 'hashes per second')
 
     # return string as ascii so we can append it to the comment
     if solution:
@@ -134,4 +125,4 @@ def make_commit(commit, prefix):
 
 
 if __name__ == '__main__':
-    make_commit('HEAD', '00000')
+    make_commit('HEAD', 'abcdef')
