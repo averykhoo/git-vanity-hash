@@ -6,6 +6,7 @@ customize the first few chars of your git hash
 
 * [x] use hash clone to avoid re-hashing
 * [ ] multiprocessing pooling
+  * https://stackoverflow.com/questions/36962462/terminate-a-python-multiprocessing-program-once-a-one-of-its-workers-meets-a-cer/36962624#36962624
 * [ ] cython
 * [x] unroll the recursion into a loop  <-- turns out this is slower, probably due to all the getting and setting
 
