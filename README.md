@@ -7,6 +7,8 @@ customize the first few chars of your git hash
 * [x] use hash clone to avoid re-hashing
 * [ ] multiprocessing pooling
 * [ ] cython
+* [x] unroll the recursion into a loop
+  * [ ] and optimize it
 
 ## See also:
 

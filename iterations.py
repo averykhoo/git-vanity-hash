@@ -26,34 +26,77 @@ def brute_force(raw_payload, desired_prefix, random_word_length=None):
 
     # we can use up to 96, but python's `int()` can only parse up to 36, and it's nice to have the hashes rate
     alphabet = tuple(map(str.encode, string.printable[:36]))
+    alphabet_len = len(alphabet)
 
-    def _brute_force(hash_obj, num_chars):
-        for char in alphabet:
-            _hash_obj = hash_obj.copy()
-            _hash_obj.update(char)
-            if num_chars:
-                solution, magic = _brute_force(_hash_obj, num_chars - 1)
-                if solution:
-                    return solution, char + magic
-            else:
-                _hash_obj.update(b'\n')
-                _prefix = _hash_obj.hexdigest()[:prefix_len]
-                if _prefix == desired_prefix:
-                    return _hash_obj.hexdigest(), char
-        return None, None
+    # we don't need an arbitrarily deep stack because we know exactly how many chars we want in the word
+    current_chars = [0] * random_word_length
+    hash_objs = [hash_obj]
+    for _ in range(random_word_length):
+        hash_obj_copy = hash_objs[-1].copy()
+        hash_obj_copy.update(alphabet[0])
+        hash_objs.append(hash_obj_copy)
 
-    # mine bitcoin
+    # brute force loop
+    solution = None
     t_start = time.perf_counter()
-    solution, magic_string = _brute_force(hash_obj, random_word_length - 1)
+    while True:
+
+        # test current config
+        _hash_obj = hash_objs[-1].copy()
+        _hash_obj.update(b'\n')
+        _prefix = _hash_obj.hexdigest()[:prefix_len]
+        if _prefix == desired_prefix:
+            solution = _hash_obj.hexdigest()
+            break
+
+        # increment the alphabet indices
+        idx = random_word_length
+        while idx:
+            idx -= 1
+            current_chars[idx] = (current_chars[idx] + 1) % alphabet_len
+            if current_chars[idx]:
+                break
+
+        # looped right back around to zero, meaning we failed to find a matching hash
+        else:
+            assert all(c == 0 for c in current_chars)
+            break
+
+        # update the hash objects
+        while idx < random_word_length:
+            _hash_obj = hash_objs[idx].copy()
+            _hash_obj.update(alphabet[current_chars[idx]])
+            idx += 1
+            hash_objs[idx] = _hash_obj
+
+    # found a solution, hopefully
     t_end = time.perf_counter()
+    magic_string = b''.join(alphabet[c] for c in current_chars)
+
+    # handle overflow so that we can still get stats
+    if all(char == alphabet[0][0] for char in magic_string):
+        magic_string = alphabet[1] + magic_string
 
     # stats
     t = t_end - t_start
     print(round(t, 2), 'secs')
     print(round(int(magic_string, 36) / t, 2), 'hashes per second')
 
+    # for i, h in enumerate(hash_objs):
+    #     print(i, h.hexdigest())
+
+    # h0 = hash_objs[0].copy()
+    # for i, c in enumerate(current_chars):
+    #     h0.update(alphabet[c])
+    #     print(i, h0.hexdigest())
+    # h0.update(b'\n')
+    # print(h0.hexdigest())
+
     # return string as ascii so we can append it to the comment
-    return solution, magic_string.decode('ascii')
+    if solution:
+        return solution, magic_string.decode('ascii')
+    else:
+        return None, None
 
 
 def make_commit(commit, prefix):
