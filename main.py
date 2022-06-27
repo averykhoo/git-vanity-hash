@@ -4,10 +4,21 @@ import subprocess
 import time
 from hashlib import sha1
 from typing import Optional
+from typing import TYPE_CHECKING
 from typing import Tuple
 from typing import Union
 
-Sha1Type = type(sha1())
+Sha1Type = type(sha1())  # specify type for PyCharm
+if TYPE_CHECKING:  # at the same time, trick mypy
+    class Sha1Type:
+        def copy(self) -> 'Sha1Type':
+            return self
+
+        def update(self, _bytes: bytes):
+            pass
+
+        def hexdigest(self) -> str:
+            return self.__class__.__name__
 
 
 def check_output(*args, env=None):
@@ -20,12 +31,13 @@ def brute_force(raw_payload: str,
                 nonce_length: Optional[int] = None,
                 ) -> Union[Tuple[None, None], Tuple[str, str]]:
     """
+    brute-force the nonce we need to append to the commit message in order to get the desired git hash prefix
 
-    :param raw_payload:
-    :param desired_prefix:
-    :param nonce_prefix:
-    :param nonce_length:
-    :return:
+    :param raw_payload:    output of `git cat-file commit HEAD`
+    :param desired_prefix: hash prefix, usually 7 chars long; e.g. '0000000'
+    :param nonce_prefix:   optional prefix to identify the nonce in the commit message, e.g. '\nnonce-'
+    :param nonce_length:   length of nonce; if not specified, defaults to length of desired prefix plus two
+    :return: tuple of (expected_hash: str, nonce: str), otherwise (None, None)
     """
     assert isinstance(desired_prefix, str) and len(desired_prefix) > 0
     assert int(desired_prefix, 16) <= 0xFFFF_FFFF
@@ -46,6 +58,11 @@ def brute_force(raw_payload: str,
                      ) -> Union[Tuple[bool, None], Tuple[str, bytes]]:
         """
         this is the (recursive) hot loop
+        it clones the hash objects in order to avoid re-hashing the same data
+        other optimizations are noted in the comments,
+            although some are just measurement-based and are not rooted in theory
+        this function is more easily written recursively,
+            and unrolling it into an iterative loop has (so far) proven to be slower
         """
         for char in alphabet:
             current_hash_obj = parent_hash_obj.copy()
@@ -54,10 +71,10 @@ def brute_force(raw_payload: str,
             # recurse for the specified number of chars
             if num_chars > 0:  # somehow `x > 0` runs faster than `x != 0`
                 sha1_hash, partial_nonce = _brute_force(current_hash_obj, num_chars - 1)
-                if sha1_hash:  # False is faster than None
+                if sha1_hash:  # somehow False seems to be faster than None
                     # found the magic string and exiting, this code does not need to be optimized
-                    assert isinstance(sha1_hash, str)
-                    assert isinstance(partial_nonce, bytes)
+                    assert isinstance(sha1_hash, str)  # convince mypy
+                    assert isinstance(partial_nonce, bytes)  # convince mypy
                     return sha1_hash, char + partial_nonce
 
             # for the final recursion, add the nonce suffix and test whether we got the desired hash prefix
@@ -66,6 +83,8 @@ def brute_force(raw_payload: str,
                 _prefix = current_hash_obj.hexdigest()[:desired_prefix_len]
                 if _prefix == desired_prefix:  # comparing interned strings is faster
                     return current_hash_obj.hexdigest(), char
+
+        # hash prefix not found
         return False, None
 
     # mine bitcoin
@@ -84,6 +103,7 @@ def brute_force(raw_payload: str,
 
     # return string as ascii so we can append it to the comment
     if expected_hash:
+        assert isinstance(expected_hash, str)  # convince mypy
         return expected_hash, magic_string.decode('ascii')
     else:
         return None, None
