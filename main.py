@@ -34,7 +34,7 @@ def brute_force(raw_payload: str,
     assert isinstance(nonce_length, int) and nonce_length > 0
 
     # initialize hash object with the prefix
-    expected_length = len(raw_payload) + 1 + len(nonce_prefix) + nonce_length + 1
+    expected_length = len(raw_payload) + 1 + len(nonce_prefix) + nonce_length + 1  # each +1 is a '\n'
     hash_obj = sha1(f'commit {expected_length}\0{raw_payload}\n{nonce_prefix}'.encode('ascii'))
     desired_prefix_len = len(desired_prefix)
 
@@ -52,7 +52,7 @@ def brute_force(raw_payload: str,
             current_hash_obj.update(char)
 
             # recurse for the specified number of chars
-            if num_chars > 0:  # somehow runs faster than `!= 0`
+            if num_chars > 0:  # somehow `x > 0` runs faster than `x != 0`
                 sha1_hash, partial_nonce = _brute_force(current_hash_obj, num_chars - 1)
                 if sha1_hash:  # False is faster than None
                     # found the magic string and exiting, this code does not need to be optimized
@@ -62,9 +62,9 @@ def brute_force(raw_payload: str,
 
             # for the final recursion, add the nonce suffix and test whether we got the desired hash prefix
             else:
-                current_hash_obj.update(b'\n')
+                current_hash_obj.update(b'\n')  # inlining the byte is faster
                 _prefix = current_hash_obj.hexdigest()[:desired_prefix_len]
-                if _prefix == desired_prefix:  # comparing interned strings is much faster
+                if _prefix == desired_prefix:  # comparing interned strings is faster
                     return current_hash_obj.hexdigest(), char
         return False, None
 
