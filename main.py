@@ -109,7 +109,7 @@ def brute_force(raw_payload: str,
     # return string as ascii so we can append it to the comment
     if expected_hash:
         assert isinstance(expected_hash, str)  # convince mypy
-        return expected_hash, magic_string.decode('ascii')
+        return expected_hash, nonce_prefix + magic_string.decode('ascii')
     else:
         raise RuntimeError(f'no nonce found to get {desired_prefix=}')
 
