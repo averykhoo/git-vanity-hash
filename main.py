@@ -8,8 +8,12 @@ from typing import TYPE_CHECKING
 from typing import Tuple
 from typing import Union
 
-Sha1Type = type(sha1())  # specify type for PyCharm
-if TYPE_CHECKING:  # at the same time, trick mypy
+# PyCharm will read this first type definition as the default
+if not TYPE_CHECKING:
+    Sha1Type = type(sha1())
+
+# mypy will be tricked into believing this is the type (but it's never actually created at runtime)
+else:
     class Sha1Type:
         def copy(self) -> 'Sha1Type':
             return self
@@ -29,15 +33,16 @@ def brute_force(raw_payload: str,
                 desired_prefix: str,
                 nonce_prefix: str = '',
                 nonce_length: Optional[int] = None,
-                ) -> Union[Tuple[None, None], Tuple[str, str]]:
+                ) -> Tuple[str, str]:
     """
     brute-force the nonce we need to append to the commit message in order to get the desired git hash prefix
+    if not found, raises a RuntimeError
 
     :param raw_payload:    output of `git cat-file commit HEAD`
     :param desired_prefix: hash prefix, usually 7 chars long; e.g. '0000000'
     :param nonce_prefix:   optional prefix to identify the nonce in the commit message, e.g. '\nnonce-'
     :param nonce_length:   length of nonce; if not specified, defaults to length of desired prefix plus two
-    :return: tuple of (expected_hash: str, nonce: str), otherwise (None, None)
+    :return:               tuple of (expected_hash: str, nonce: str)
     """
     assert isinstance(desired_prefix, str) and len(desired_prefix) > 0
     assert int(desired_prefix, 16) <= 0xFFFF_FFFF
@@ -106,7 +111,7 @@ def brute_force(raw_payload: str,
         assert isinstance(expected_hash, str)  # convince mypy
         return expected_hash, magic_string.decode('ascii')
     else:
-        return None, None
+        raise RuntimeError(f'no nonce found to get {desired_prefix=}')
 
 
 def make_commit(commit, prefix):
@@ -117,7 +122,6 @@ def make_commit(commit, prefix):
 
     # brute force what we need to append in order to get the desired hash prefix
     expected, magic_string = brute_force(payload, prefix)
-    assert expected is not None
     print(f'found {magic_string=} that changes {commit=} to start with {prefix=}')
 
     # we need to set this to the same value in order to make the hash match
