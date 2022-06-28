@@ -2,6 +2,12 @@
 
 customize the first few chars of your git hash
 
+## Usage
+
+1. Make a git commit
+2. Run the script
+3. Push to git
+
 ## TODO:
 
 * [x] use hash clone to avoid re-hashing
