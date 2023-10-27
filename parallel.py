@@ -45,7 +45,7 @@ def make_commit_parallel(commit, prefix):
             env[name] = check_output('git', '--no-pager', 'show', '-s', f'--format=%{fmt}')
 
         # update the specified commit with the magic string
-        print(check_output('git', 'commit', '--amend', '-m', f'{message}\n{magic_string}\n', env=env))
+        print(check_output('git', 'commit', '--amend', '--allow-empty', '-m', f'{message}\n{magic_string}\n', env=env))
 
         # check that the full sha1 hash of the commit is what we expect
         assert expected == check_output('git', 'rev-parse', commit)
@@ -59,4 +59,4 @@ def make_commit_parallel(commit, prefix):
 
 if __name__ == '__main__':
     p = mp.Pool(mp.cpu_count())
-    make_commit_parallel('HEAD', '000000')
+    make_commit_parallel('HEAD', '0000000')

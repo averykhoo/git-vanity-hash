@@ -139,9 +139,9 @@ def make_commit(commit, prefix):
         env[name] = check_output('git', '--no-pager', 'show', '-s', f'--format=%{fmt}')
 
     # update the specified commit with the magic string
-    print('git', 'commit', '--amend', '-m', f'{message}\n{magic_string}\n')
+    print('git', 'commit', '--amend', '--allow-empty', '-m', f'{message}\n{magic_string}\n')
     print(env)
-    print(check_output('git', 'commit', '--amend', '-m', f'{message}\n{magic_string}\n', env=env))
+    print(check_output('git', 'commit', '--amend', '--allow-empty', '-m', f'{message}\n{magic_string}\n', env=env))
 
     # check that the full sha1 hash of the commit is what we expect
     assert expected == check_output('git', 'rev-parse', commit)
